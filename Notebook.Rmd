@@ -1,0 +1,281 @@
+---
+title: "R Notebook"
+output:
+  html_notebook:
+    toc: yes
+    code_folding: hide
+---
+
+# Sources
+* [The exponential family: Basics](https://people.eecs.berkeley.edu/~jordan/courses/260-spring10/other-readings/chapter8.pdf)
+* Wikipedia articles on distributions
+
+
+# Introduction
+
+This notebook contains an overview of the most common distributions.
+
+In general, when we generate distributions in R or Python the rule is:
+
+* For CDF - probability density function, in R we use "p" and in Python "cdf".
+* For inverse CDF, in R we use "q" and in Python "ppf".
+* For the PDF, in R we use "d" and in Python "pdf".
+* For random values, in R we use "r" and in Python the name of the distribution.
+
+Overall,
+
+| Distribution | Probability (CDF) | Quantile (inv. CDF) | Density (PDF) | Random | Family | Type
+|:-|:-:|:-:|:-:|:-:|:-|:-|
+| Beta | pbeta/scipy.stats.beta.cdf | qbeta/scipy.stats.beta.ppf | dbeta/scipy.stats.beta.pdf | rbeta/numpy.random.beta | Exponential | Continuous |
+
+# Exponential Family of Distributions
+
+One concept that we will use in this notebook is the exponential family of distributions. This family encapsulates the Gaussian, binomial, beta, multinomial, Poisson and gamma distributions. The reason for using the exponential family framework instead of specific distributions is the elegance and simplicity that characterises the earlier.
+
+Given a measure $\theta$, we define an exponential family of probability distributions as those distributions whose density have the following general form:
+
+$$p(x|\theta)=h(x)exp^{\theta^{T}T(x)-A(\theta)}$$
+where $\theta$ is a natural parameter vector, $T(x)$ is a function of $x$ or sufficient statistics, $A$ is the cumulant function. 
+
+A sufficient statistic for $\theta$ contains all the information in the sample about $\theta$. Thus, given the value of $T$, we cannot improve our knowledge about $\theta$ by a more detailed analysis of the data $x_{1},\dots ,x_{n}$. In other words, an estimate based on $T = t$ cannot improved by using the data $x_{1},\dots ,x_{n}$.
+
+The cumulant function is the log-integral of the exponential function
+
+$$A(\theta)=log\int h(x)exp^{\theta^{T}T(x)}v(dx)$$
+
+Therefore, the $A$ function is determined once $v, T(x)$ and $h(x)$ are determined. 
+
+# Beta
+
+The **Beta** distribution belongs to the **exponential** family and is a **continuous** distribution. It lies within the intervals **[0, 1]** and is parametrized with real positive numbers ($\alpha, \beta >0$). It expresses the probability of success of an event given the parameters.
+
+### R
+
+* pbeta - p for "probability", the cumulative distribution function (c.d.f.) -- $P(X<=x)$
+* qbeta - q for "quantile", the inverse c.d.f. -- $F(x)<=p$
+* dbeta - d for "density", the density function (p.f. or p.d.f.) -- $P(X=x)$
+* rbeta - r for "random", a random variable having the specified distribution
+
+### Python
+
+* scipy.stats.beta.cdf - for "probability", the cumulative distribution function (c.d.f.)
+* scipy.stats.beta.ppf - for "quantile", the inverse c.d.f.
+* scipy.stats.beta.pdf - for "density", the density function (p.f. or p.d.f.)
+* scipy.stats.beta     - for "random", a random variable having the specified distribution
+
+### Bayesian conjugate prior
+
+* Bernoulli
+* binomial
+* negative binomial
+* geometric
+
+### Plot the functions
+
+The **Beta** distribution functions are:
+
+* PDF: $Pr(X=p)= \frac{1}{Beta(\alpha, \beta)}x^{\alpha - 1}(1-x)^{\beta - 1}$, where $\frac{1}{Beta(\alpha, \beta)} = \frac{(\alpha + \beta - 1)!}{(\alpha - 1)!(\beta - 1)!}$
+* CDF: $Pr(X\leq p) = I_{p}(\alpha, \beta)=\frac{\Gamma(\alpha + \beta)}{\Gamma(\alpha)\Gamma(\beta)}\int_{0}^{p}x^{\alpha - 1}(1-x)^{\beta - 1}dx$
+
+```{r}
+pl.beta <- function(a,b, asp = if(isLim) 1, ylim = if(isLim) c(0,1.1)) {
+  if(isLim <- a == 0 || b == 0 || a == Inf || b == Inf) {
+    eps <- 1e-10
+    x <- c(0, eps, (1:7)/16, 1/2+c(-eps,0,eps), (9:15)/16, 1-eps, 1)
+  } else {
+    x <- seq(0, 1, length = 1025)
+  }
+  fx <- cbind(dbeta(x, a,b), pbeta(x, a,b), qbeta(x, a,b))
+  f <- fx; f[fx == Inf] <- 1e100
+  matplot(x, f, ylab="", type="l", ylim=ylim, asp=asp,
+          main = sprintf("Beta(x, a=%g, b=%g)", a,b))
+  abline(0,1,     col="gray", lty=3)
+  abline(h = 0:1, col="gray", lty=3)
+  legend("top", paste0(c("d","p","q"), "beta(x, a,b)"),
+         col=1:3, lty=1:3, bty = "n")
+  invisible(cbind(x, fx))
+}
+pl.beta(2,5)
+```
+In the PDF, the horizontal axis $x$ is the probability of success of an event. The vertical axis is the $Pr(X=p)$.
+
+As we can observe from the plot above, the density PDF function (`dbeta`) can exceed the value of 1. The reason is that the density function (likelihood in a Bayesian setting) is **NOT** a probability function CDF (`pbeta`). 
+
+* If $\alpha=\beta$, then the shape of the PDF function is symmetric, unimodal and *mode*=*mean*=*median*=0.5.
+* If $\alpha<\beta$, then the shape of the PDF function is right skewed and *mode*<*median*<*mean*<0.5.
+* If $\alpha>\beta$, then the shape of the PDF function is left skewed and *mode*>*median*>*mean*>0.5.
+
+### Moments
+
+* Mean: $\frac{\alpha}{(\alpha+\beta)}$
+* Variance: $\frac{\alpha \beta}{[(\alpha+\beta)^{2}(\alpha+\beta+1)]}$
+
+### Exponential Family
+
+* **Step 1:** Use the exponential family of distributions form 
+
+$$p(x|\theta)=h(x)exp^{\theta^{T}T(x)-A(\theta)}$$
+
+* **Step 2:** Exp and log the Beta PDF
+
+$$
+\begin{aligned}
+p(x;\theta) &= \frac{\Gamma(\alpha + \beta)}{\Gamma(\alpha)\Gamma(\beta)}x^{\alpha -1}(1-x)^{\beta - 1}\mathbb{I}[x \in (0,1)] \\ 
+&= exp \Big\{ log \Big( \frac{\Gamma(\alpha + \beta)}{\Gamma(\alpha)\Gamma(\beta)}x^{\alpha -1}(1-x)^{\beta - 1}\mathbb{I}[x \in (0,1)] \Big) \Big\} \\
+&= exp\Big\{ log\Big( \frac{\Gamma(\alpha + \beta)}{\Gamma(\alpha)\Gamma(\beta)} \Big) + (\alpha -1)log(x) + (\beta -1)log(1-x) + log(\mathbb{I}[x \in (0,1)]) \Big\} \\
+&= exp \Big\{ log\Big( \frac{\Gamma(\alpha + \beta)}{\Gamma(\alpha)\Gamma(\beta)} \Big) + \alpha log(x) + \beta log(1-x) - log(x) - log(1-x) + log(\mathbb{I}[x \in (0,1)]) \Big\} \\
+&= exp \Big\{ log\Big( \frac{\Gamma(\alpha + \beta)}{\Gamma(\alpha)\Gamma(\beta)} \Big) + \alpha log(x) + \beta log(1-x) \Big\} \frac{\mathbb{I}[x \in (0,1)]}{x(1-x)}
+\end{aligned}
+$$
+with natural parameters 
+
+* $\theta$= $\alpha$, $\beta$
+* $T(x)$= $log(x)$, $log(1-x)$
+* $h(x)$= $\frac{\mathbb{I}[x \in (0,1)]}{x(1-x)}$
+* $A(\theta)$= $-log\Big( \frac{\Gamma(\alpha + \beta)}{\Gamma(\alpha)\Gamma(\beta)} \Big)$
+
+### Exponential Family Moments
+
+
+
+### Applications
+
+The Beta distribution is used to count the defective items in a production process.
+
+# Bernoulli
+
+Bernoulli is a special case of binomial distribution when the number of trials $n=1$. See below.
+
+# Binomial
+
+The **binomial** distribution is a **discrete** distribution that counts the number of successes in a series of $n$ independent experiments. The experiments should be in a boolean form. It belongs to the **exponential** family of distributions. It lies within the $(k \in [0, \infty))$ intervals and is parametrized with the expected propability $p$ and the number of trials $n$.
+
+### R
+
+* pbinom - p for "probability", the cumulative distribution function (c.d.f.) -- $P(X<=x)$
+* qbinom - q for "quantile", the inverse c.d.f. -- $F(x)<=p$
+* dbinom - d for "density", the density function (p.f. or p.d.f.) -- $P(X=x)$
+* rbinom - r for "random", a random variable having the specified distribution
+
+### Python
+
+* scipy.stats.binom.cdf - for "probability", the cumulative distribution function (c.d.f.)
+* scipy.stats.binom.ppf - for "quantile", the inverse c.d.f.
+* scipy.stats.binom.pmf - for "density", the density function (p.f. or p.d.f.)
+* scipy.stats.binom    - for "random", a random variable having the specified distribution
+
+### Bayesian conjugate prior
+
+
+### Plot the functions
+
+The **binomial** distribution functions are: 
+
+* PDF: $Pr(X=k)=\binom{n}{k}p^{k}(1-p)^{n-k}$, where $\binom{n}{k} = \frac{n!}{k!(n-k!)}$
+* CDF: $Pr(X\leq k)=\Sigma_{i=0}^{k}p^{i}(1-p)^{n-i}$
+
+```{r}
+pl.binom <- function(n, p) {
+  x <- seq(0, n, by = 1) 
+  fx <- cbind(dbinom(x, n,p), pbinom(x, n,p), qbinom(x/n, n,p))
+  f <- fx
+  f[, 1] <- f[, 1]*10
+  f[, 3] <- f[, 3]/100
+  
+  matplot(x, f, ylab="", type="l", 
+          main = sprintf("binomial(x, n=%g, p=%g)", n,p))
+  abline(v=n/2,   col="gray", lty=3)
+  legend("top", paste0(c("d","p","q"), "binomial(n,k,p)"),
+         col=1:3, lty=1:3, bty = "n")
+  invisible(cbind(x, fx))
+}
+
+pl.binom(100, 0.5)
+```
+
+### Moments
+
+* Mean: $np$
+* Variance: $np(1-p)$
+
+### Exponential Family
+
+* **Step 1:** Use the exponential family of distributions form 
+
+$$p(x|\theta)=h(x)exp^{\theta^{T}T(x)-A(\theta)}$$
+
+* **Step 2:** Exp and log the Beta PDF
+
+$$
+\begin{aligned}
+p(x;\theta) &= \binom{n}{k}p^{k}(1-p)^{n-k} \\ 
+&= exp \Big\{ log \Big( \binom{n}{k}p^{k}(1-p)^{n-k} \Big) \Big\} \\
+&= exp\Big\{ log \binom{n}{k} + klog(p) + (n-k)log(1-p) \Big\} \\
+&= \binom{n}{k} exp \Big\{ klog(p) + (n-k)log(1-p) \Big\} \\
+&= \binom{n}{k} exp \Big\{ klog(p) + nlog(1-p) - klog(1-p) \Big\} \\
+&= \binom{n}{k} exp \Big\{ klog(\frac{p}{1-p}) + nlog(1-p) \Big\}
+\end{aligned}
+$$
+with natural parameters 
+
+* $\theta$= $log(\frac{p}{1-p})$
+* $T(x)$= $k$
+* $h(x)$= $\binom{n}{k}$
+* $A(\theta)$= $-nlog(1-p)$
+
+### Applications
+
+The binomial distribution is frequently used to model the number of successes in a sample of size $n$ drawn **with replacement** from a population of size $N$. If the sampling is carried out without replacement, the draws are not independent and so the resulting distribution is a hypergeometric distribution, not a binomial one. 
+
+**Urn problem:** the distribution of the number of successful draws (trials), i.e. extraction of white balls, given $n$ draws with replacement in an urn with black and white balls.
+
+# Poisson
+
+The **Poisson** distribution belongs to the **exponential** family and is a **discrete** distribution that expresses the probability of a current number of events occuring in a fixed interval of time. The parameters of the Poisson distribution is the $\lambda$ or the expected number of events that occur in time. The output is the number of occurences $k$ of an event within time limits.
+
+### R
+
+* ppois - p for "probability", the cumulative distribution function (c.d.f.) -- $P(X<=x)$
+* qpois - q for "quantile", the inverse c.d.f. -- $F(x)<=p$
+* dpois - d for "density", the density function (p.f. or p.d.f.) -- $P(X=x)$
+* rpois - r for "random", a random variable having the specified distribution
+
+### Python
+
+* scipy.stats.poisson.cdf - for "probability", the cumulative distribution function (c.d.f.)
+* scipy.stats.poisson.ppf - for "quantile", the inverse c.d.f.
+* scipy.stats.poisson.pmf - for "density", the density function (p.f. or p.d.f.)
+* scipy.stats.poisson    - for "random", a random variable having the specified distribution
+
+### Bayesian conjugate prior
+
+
+### Plot the functions
+
+The **Poisson** distribution functions are: 
+
+* PDF: $Pr(X=k)=\frac{\lambda^{k}e^{-\lambda}}{}$, where $\binom{n}{k} = \frac{n!}{k!(n-k!)}$
+* CDF: $Pr(X\leq k)=\Sigma_{i=0}^{k}p^{i}(1-p)^{n-i}$
+
+```{r}
+pl.pois <- function(n, lambda) {
+  x <- seq(0, n, by = 1) 
+  fx <- cbind(dpois(x, lambda), ppois(x, lambda), qpois(x/n, lambda))
+  f <- fx
+  f[, 1] <- f[, 1]*10
+  f[, 3] <- f[, 3]/100
+  
+  matplot(x, f, ylab="", type="l", 
+          main = sprintf("Poisson(x, lambda=%g)", lambda))
+  abline(v=n/2,   col="gray", lty=3)
+  legend("top", paste0(c("d","p","q"), "poisson(x, lambda)"),
+         col=1:3, lty=1:3, bty = "n")
+  invisible(cbind(x, fx))
+}
+
+pl.pois(100, 50)
+```
+
+### Applications
+
+Poisson expresses the probability of a given number of events occurring in a fixed interval of time or space if these events occur with a known constant mean rate and independently of the time since the last event.
