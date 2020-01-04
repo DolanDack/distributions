@@ -5,3 +5,10 @@ The purpose of this project is to review in depth the most common distributions,
 The file is in R Markdown and the plots have been generated using R base package. 
 
 It is an ongoing project that adds value as a quick reference guide for the various distributions and their applications. 
+
+## Content
+
+* Beta
+* Bernoulli
+* binomial
+* Poisson
